@@ -118,7 +118,7 @@ function IndustryPage() {
       </section>
       <section className="container-x mx-auto max-w-7xl pb-24">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {data.useCases.map((u) => (
+          {data.useCases.map((u: { title: string; body: string }) => (
             <div key={u.title} className="rounded-3xl bg-card border border-border/60 p-7 shadow-card">
               <div className="flex items-start gap-3">
                 <div className="h-8 w-8 rounded-full bg-gradient-flame text-white inline-flex items-center justify-center shrink-0">
