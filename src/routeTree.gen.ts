@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SolutionsRouteImport } from './routes/solutions'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SeriesAAnnouncementRouteImport } from './routes/series-a-announcement'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ProductRouteImport } from './routes/product'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as LoginRouteImport } from './routes/login'
@@ -35,6 +36,11 @@ const SignupRoute = SignupRouteImport.update({
 const SeriesAAnnouncementRoute = SeriesAAnnouncementRouteImport.update({
   id: '/series-a-announcement',
   path: '/series-a-announcement',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProductRoute = ProductRouteImport.update({
@@ -91,6 +97,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
   '/product': typeof ProductRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/series-a-announcement': typeof SeriesAAnnouncementRoute
   '/signup': typeof SignupRoute
   '/solutions': typeof SolutionsRoute
@@ -105,6 +112,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
   '/product': typeof ProductRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/series-a-announcement': typeof SeriesAAnnouncementRoute
   '/signup': typeof SignupRoute
   '/solutions': typeof SolutionsRoute
@@ -120,6 +128,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
   '/product': typeof ProductRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/series-a-announcement': typeof SeriesAAnnouncementRoute
   '/signup': typeof SignupRoute
   '/solutions': typeof SolutionsRoute
@@ -136,6 +145,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/pricing'
     | '/product'
+    | '/reset-password'
     | '/series-a-announcement'
     | '/signup'
     | '/solutions'
@@ -150,6 +160,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/pricing'
     | '/product'
+    | '/reset-password'
     | '/series-a-announcement'
     | '/signup'
     | '/solutions'
@@ -164,6 +175,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/pricing'
     | '/product'
+    | '/reset-password'
     | '/series-a-announcement'
     | '/signup'
     | '/solutions'
@@ -179,6 +191,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PricingRoute: typeof PricingRoute
   ProductRoute: typeof ProductRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SeriesAAnnouncementRoute: typeof SeriesAAnnouncementRoute
   SignupRoute: typeof SignupRoute
   SolutionsRoute: typeof SolutionsRoute
@@ -207,6 +220,13 @@ declare module '@tanstack/react-router' {
       path: '/series-a-announcement'
       fullPath: '/series-a-announcement'
       preLoaderRoute: typeof SeriesAAnnouncementRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/product': {
@@ -283,6 +303,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PricingRoute: PricingRoute,
   ProductRoute: ProductRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SeriesAAnnouncementRoute: SeriesAAnnouncementRoute,
   SignupRoute: SignupRoute,
   SolutionsRoute: SolutionsRoute,
