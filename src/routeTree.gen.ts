@@ -26,6 +26,12 @@ import { Route as IndustriesSlugRouteImport } from './routes/industries.$slug'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as AuthenticatedAppWorkflowsRouteImport } from './routes/_authenticated/app.workflows'
+import { Route as AuthenticatedAppTeamRouteImport } from './routes/_authenticated/app.team'
+import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/app.settings'
+import { Route as AuthenticatedAppRunsRouteImport } from './routes/_authenticated/app.runs'
+import { Route as AuthenticatedAppIntegrationsRouteImport } from './routes/_authenticated/app.integrations'
+import { Route as AuthenticatedAppDocumentsRouteImport } from './routes/_authenticated/app.documents'
+import { Route as AuthenticatedAppApiRouteImport } from './routes/_authenticated/app.api'
 
 const SolutionsRoute = SolutionsRouteImport.update({
   id: '/solutions',
@@ -112,6 +118,39 @@ const AuthenticatedAppWorkflowsRoute =
     path: '/workflows',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppTeamRoute = AuthenticatedAppTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppSettingsRoute =
+  AuthenticatedAppSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppRunsRoute = AuthenticatedAppRunsRouteImport.update({
+  id: '/runs',
+  path: '/runs',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppIntegrationsRoute =
+  AuthenticatedAppIntegrationsRouteImport.update({
+    id: '/integrations',
+    path: '/integrations',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppDocumentsRoute =
+  AuthenticatedAppDocumentsRouteImport.update({
+    id: '/documents',
+    path: '/documents',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppApiRoute = AuthenticatedAppApiRouteImport.update({
+  id: '/api',
+  path: '/api',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -128,6 +167,12 @@ export interface FileRoutesByFullPath {
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/industries/$slug': typeof IndustriesSlugRoute
   '/industries/': typeof IndustriesIndexRoute
+  '/app/api': typeof AuthenticatedAppApiRoute
+  '/app/documents': typeof AuthenticatedAppDocumentsRoute
+  '/app/integrations': typeof AuthenticatedAppIntegrationsRoute
+  '/app/runs': typeof AuthenticatedAppRunsRoute
+  '/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/app/team': typeof AuthenticatedAppTeamRoute
   '/app/workflows': typeof AuthenticatedAppWorkflowsRoute
   '/app/': typeof AuthenticatedAppIndexRoute
 }
@@ -145,6 +190,12 @@ export interface FileRoutesByTo {
   '/solutions': typeof SolutionsRoute
   '/industries/$slug': typeof IndustriesSlugRoute
   '/industries': typeof IndustriesIndexRoute
+  '/app/api': typeof AuthenticatedAppApiRoute
+  '/app/documents': typeof AuthenticatedAppDocumentsRoute
+  '/app/integrations': typeof AuthenticatedAppIntegrationsRoute
+  '/app/runs': typeof AuthenticatedAppRunsRoute
+  '/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/app/team': typeof AuthenticatedAppTeamRoute
   '/app/workflows': typeof AuthenticatedAppWorkflowsRoute
   '/app': typeof AuthenticatedAppIndexRoute
 }
@@ -165,6 +216,12 @@ export interface FileRoutesById {
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/industries/$slug': typeof IndustriesSlugRoute
   '/industries/': typeof IndustriesIndexRoute
+  '/_authenticated/app/api': typeof AuthenticatedAppApiRoute
+  '/_authenticated/app/documents': typeof AuthenticatedAppDocumentsRoute
+  '/_authenticated/app/integrations': typeof AuthenticatedAppIntegrationsRoute
+  '/_authenticated/app/runs': typeof AuthenticatedAppRunsRoute
+  '/_authenticated/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/_authenticated/app/team': typeof AuthenticatedAppTeamRoute
   '/_authenticated/app/workflows': typeof AuthenticatedAppWorkflowsRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
 }
@@ -185,6 +242,12 @@ export interface FileRouteTypes {
     | '/app'
     | '/industries/$slug'
     | '/industries/'
+    | '/app/api'
+    | '/app/documents'
+    | '/app/integrations'
+    | '/app/runs'
+    | '/app/settings'
+    | '/app/team'
     | '/app/workflows'
     | '/app/'
   fileRoutesByTo: FileRoutesByTo
@@ -202,6 +265,12 @@ export interface FileRouteTypes {
     | '/solutions'
     | '/industries/$slug'
     | '/industries'
+    | '/app/api'
+    | '/app/documents'
+    | '/app/integrations'
+    | '/app/runs'
+    | '/app/settings'
+    | '/app/team'
     | '/app/workflows'
     | '/app'
   id:
@@ -221,6 +290,12 @@ export interface FileRouteTypes {
     | '/_authenticated/app'
     | '/industries/$slug'
     | '/industries/'
+    | '/_authenticated/app/api'
+    | '/_authenticated/app/documents'
+    | '/_authenticated/app/integrations'
+    | '/_authenticated/app/runs'
+    | '/_authenticated/app/settings'
+    | '/_authenticated/app/team'
     | '/_authenticated/app/workflows'
     | '/_authenticated/app/'
   fileRoutesById: FileRoutesById
@@ -363,15 +438,69 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppWorkflowsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/team': {
+      id: '/_authenticated/app/team'
+      path: '/team'
+      fullPath: '/app/team'
+      preLoaderRoute: typeof AuthenticatedAppTeamRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/settings': {
+      id: '/_authenticated/app/settings'
+      path: '/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AuthenticatedAppSettingsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/runs': {
+      id: '/_authenticated/app/runs'
+      path: '/runs'
+      fullPath: '/app/runs'
+      preLoaderRoute: typeof AuthenticatedAppRunsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/integrations': {
+      id: '/_authenticated/app/integrations'
+      path: '/integrations'
+      fullPath: '/app/integrations'
+      preLoaderRoute: typeof AuthenticatedAppIntegrationsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/documents': {
+      id: '/_authenticated/app/documents'
+      path: '/documents'
+      fullPath: '/app/documents'
+      preLoaderRoute: typeof AuthenticatedAppDocumentsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/api': {
+      id: '/_authenticated/app/api'
+      path: '/api'
+      fullPath: '/app/api'
+      preLoaderRoute: typeof AuthenticatedAppApiRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
   }
 }
 
 interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppApiRoute: typeof AuthenticatedAppApiRoute
+  AuthenticatedAppDocumentsRoute: typeof AuthenticatedAppDocumentsRoute
+  AuthenticatedAppIntegrationsRoute: typeof AuthenticatedAppIntegrationsRoute
+  AuthenticatedAppRunsRoute: typeof AuthenticatedAppRunsRoute
+  AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
+  AuthenticatedAppTeamRoute: typeof AuthenticatedAppTeamRoute
   AuthenticatedAppWorkflowsRoute: typeof AuthenticatedAppWorkflowsRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppApiRoute: AuthenticatedAppApiRoute,
+  AuthenticatedAppDocumentsRoute: AuthenticatedAppDocumentsRoute,
+  AuthenticatedAppIntegrationsRoute: AuthenticatedAppIntegrationsRoute,
+  AuthenticatedAppRunsRoute: AuthenticatedAppRunsRoute,
+  AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
+  AuthenticatedAppTeamRoute: AuthenticatedAppTeamRoute,
   AuthenticatedAppWorkflowsRoute: AuthenticatedAppWorkflowsRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
 }
