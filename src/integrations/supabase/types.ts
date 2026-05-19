@@ -56,6 +56,59 @@ export type Database = {
         }
         Relationships: []
       }
+      workflows: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          graph: Json
+          id: string
+          name: string
+          schedule: string | null
+          status: Database["public"]["Enums"]["workflow_status"]
+          tags: string[]
+          trigger_type: Database["public"]["Enums"]["workflow_trigger"]
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          graph?: Json
+          id?: string
+          name: string
+          schedule?: string | null
+          status?: Database["public"]["Enums"]["workflow_status"]
+          tags?: string[]
+          trigger_type?: Database["public"]["Enums"]["workflow_trigger"]
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          graph?: Json
+          id?: string
+          name?: string
+          schedule?: string | null
+          status?: Database["public"]["Enums"]["workflow_status"]
+          tags?: string[]
+          trigger_type?: Database["public"]["Enums"]["workflow_trigger"]
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflows_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspace_members: {
         Row: {
           created_at: string
@@ -141,6 +194,8 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      workflow_status: "draft" | "active" | "paused" | "archived"
+      workflow_trigger: "manual" | "webhook" | "schedule"
       workspace_role: "owner" | "admin" | "builder" | "viewer"
     }
     CompositeTypes: {
@@ -270,6 +325,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      workflow_status: ["draft", "active", "paused", "archived"],
+      workflow_trigger: ["manual", "webhook", "schedule"],
       workspace_role: ["owner", "admin", "builder", "viewer"],
     },
   },
