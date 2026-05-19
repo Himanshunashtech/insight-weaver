@@ -25,6 +25,7 @@ import { Route as IndustriesIndexRouteImport } from './routes/industries.index'
 import { Route as IndustriesSlugRouteImport } from './routes/industries.$slug'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
+import { Route as AuthenticatedAppWorkflowsRouteImport } from './routes/_authenticated/app.workflows'
 
 const SolutionsRoute = SolutionsRouteImport.update({
   id: '/solutions',
@@ -105,6 +106,12 @@ const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppWorkflowsRoute =
+  AuthenticatedAppWorkflowsRouteImport.update({
+    id: '/workflows',
+    path: '/workflows',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/industries/$slug': typeof IndustriesSlugRoute
   '/industries/': typeof IndustriesIndexRoute
+  '/app/workflows': typeof AuthenticatedAppWorkflowsRoute
   '/app/': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRoutesByTo {
@@ -137,6 +145,7 @@ export interface FileRoutesByTo {
   '/solutions': typeof SolutionsRoute
   '/industries/$slug': typeof IndustriesSlugRoute
   '/industries': typeof IndustriesIndexRoute
+  '/app/workflows': typeof AuthenticatedAppWorkflowsRoute
   '/app': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRoutesById {
@@ -156,6 +165,7 @@ export interface FileRoutesById {
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/industries/$slug': typeof IndustriesSlugRoute
   '/industries/': typeof IndustriesIndexRoute
+  '/_authenticated/app/workflows': typeof AuthenticatedAppWorkflowsRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRouteTypes {
@@ -175,6 +185,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/industries/$slug'
     | '/industries/'
+    | '/app/workflows'
     | '/app/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
     | '/solutions'
     | '/industries/$slug'
     | '/industries'
+    | '/app/workflows'
     | '/app'
   id:
     | '__root__'
@@ -209,6 +221,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app'
     | '/industries/$slug'
     | '/industries/'
+    | '/_authenticated/app/workflows'
     | '/_authenticated/app/'
   fileRoutesById: FileRoutesById
 }
@@ -343,14 +356,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/workflows': {
+      id: '/_authenticated/app/workflows'
+      path: '/workflows'
+      fullPath: '/app/workflows'
+      preLoaderRoute: typeof AuthenticatedAppWorkflowsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
   }
 }
 
 interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppWorkflowsRoute: typeof AuthenticatedAppWorkflowsRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppWorkflowsRoute: AuthenticatedAppWorkflowsRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
 }
 
@@ -388,3 +410,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
