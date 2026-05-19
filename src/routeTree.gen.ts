@@ -32,6 +32,7 @@ import { Route as AuthenticatedAppRunsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedAppIntegrationsRouteImport } from './routes/_authenticated/app.integrations'
 import { Route as AuthenticatedAppDocumentsRouteImport } from './routes/_authenticated/app.documents'
 import { Route as AuthenticatedAppApiRouteImport } from './routes/_authenticated/app.api'
+import { Route as AuthenticatedAppWorkflowsIdRouteImport } from './routes/_authenticated/app.workflows_.$id'
 
 const SolutionsRoute = SolutionsRouteImport.update({
   id: '/solutions',
@@ -151,6 +152,12 @@ const AuthenticatedAppApiRoute = AuthenticatedAppApiRouteImport.update({
   path: '/api',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppWorkflowsIdRoute =
+  AuthenticatedAppWorkflowsIdRouteImport.update({
+    id: '/workflows_/$id',
+    path: '/workflows/$id',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -175,6 +182,7 @@ export interface FileRoutesByFullPath {
   '/app/team': typeof AuthenticatedAppTeamRoute
   '/app/workflows': typeof AuthenticatedAppWorkflowsRoute
   '/app/': typeof AuthenticatedAppIndexRoute
+  '/app/workflows/$id': typeof AuthenticatedAppWorkflowsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -198,6 +206,7 @@ export interface FileRoutesByTo {
   '/app/team': typeof AuthenticatedAppTeamRoute
   '/app/workflows': typeof AuthenticatedAppWorkflowsRoute
   '/app': typeof AuthenticatedAppIndexRoute
+  '/app/workflows/$id': typeof AuthenticatedAppWorkflowsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -224,6 +233,7 @@ export interface FileRoutesById {
   '/_authenticated/app/team': typeof AuthenticatedAppTeamRoute
   '/_authenticated/app/workflows': typeof AuthenticatedAppWorkflowsRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
+  '/_authenticated/app/workflows_/$id': typeof AuthenticatedAppWorkflowsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -250,6 +260,7 @@ export interface FileRouteTypes {
     | '/app/team'
     | '/app/workflows'
     | '/app/'
+    | '/app/workflows/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -273,6 +284,7 @@ export interface FileRouteTypes {
     | '/app/team'
     | '/app/workflows'
     | '/app'
+    | '/app/workflows/$id'
   id:
     | '__root__'
     | '/'
@@ -298,6 +310,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/team'
     | '/_authenticated/app/workflows'
     | '/_authenticated/app/'
+    | '/_authenticated/app/workflows_/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -480,6 +493,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppApiRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/workflows_/$id': {
+      id: '/_authenticated/app/workflows_/$id'
+      path: '/workflows/$id'
+      fullPath: '/app/workflows/$id'
+      preLoaderRoute: typeof AuthenticatedAppWorkflowsIdRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
   }
 }
 
@@ -492,6 +512,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppTeamRoute: typeof AuthenticatedAppTeamRoute
   AuthenticatedAppWorkflowsRoute: typeof AuthenticatedAppWorkflowsRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
+  AuthenticatedAppWorkflowsIdRoute: typeof AuthenticatedAppWorkflowsIdRoute
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
@@ -503,6 +524,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppTeamRoute: AuthenticatedAppTeamRoute,
   AuthenticatedAppWorkflowsRoute: AuthenticatedAppWorkflowsRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
+  AuthenticatedAppWorkflowsIdRoute: AuthenticatedAppWorkflowsIdRoute,
 }
 
 const AuthenticatedAppRouteWithChildren =
