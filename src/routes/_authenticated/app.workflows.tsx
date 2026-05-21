@@ -136,18 +136,6 @@ function WorkflowsList() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const rename = useMutation({
-    mutationFn: async ({ id, name }: { id: string; name: string }) => {
-      const trimmed = name.trim() || "Untitled workflow";
-      const { error } = await supabase.from("workflows").update({ name: trimmed }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["workflows", wsId] });
-      toast.success("Renamed");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -206,8 +194,8 @@ function WorkflowsList() {
               <WorkflowCard
                 key={w.id}
                 w={w}
-                onDelete={() => remove.mutate(w.id)}
-                onRename={(name) => rename.mutate({ id: w.id, name })}
+                onDelete={() => remove.mutate(w)}
+                onRename={(name) => rename.mutate({ id: w.id, name, from: w.name })}
               />
             ))}
           </div>
