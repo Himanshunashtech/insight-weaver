@@ -17,6 +17,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { logWorkflowEvent } from "@/lib/audit";
 
 export const Route = createFileRoute("/_authenticated/app/workflows")({
   component: WorkflowsList,
@@ -80,6 +81,11 @@ function WorkflowsList() {
         .select("id")
         .single();
       if (error) throw error;
+      await logWorkflowEvent({
+        workspaceId: wsId,
+        workflowId: data.id as string,
+        action: "created",
+      });
       return data.id as string;
     },
     onSuccess: (id) => {
@@ -90,8 +96,16 @@ function WorkflowsList() {
   });
 
   const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("workflows").delete().eq("id", id);
+    mutationFn: async (row: Row) => {
+      if (wsId) {
+        await logWorkflowEvent({
+          workspaceId: wsId,
+          workflowId: row.id,
+          action: "deleted",
+          details: { name: row.name },
+        });
+      }
+      const { error } = await supabase.from("workflows").delete().eq("id", row.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -102,10 +116,18 @@ function WorkflowsList() {
   });
 
   const rename = useMutation({
-    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+    mutationFn: async ({ id, name, from }: { id: string; name: string; from: string }) => {
       const trimmed = name.trim() || "Untitled workflow";
       const { error } = await supabase.from("workflows").update({ name: trimmed }).eq("id", id);
       if (error) throw error;
+      if (wsId && trimmed !== from) {
+        await logWorkflowEvent({
+          workspaceId: wsId,
+          workflowId: id,
+          action: "renamed",
+          details: { from, to: trimmed },
+        });
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["workflows", wsId] });
@@ -113,6 +135,7 @@ function WorkflowsList() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -171,8 +194,8 @@ function WorkflowsList() {
               <WorkflowCard
                 key={w.id}
                 w={w}
-                onDelete={() => remove.mutate(w.id)}
-                onRename={(name) => rename.mutate({ id: w.id, name })}
+                onDelete={() => remove.mutate(w)}
+                onRename={(name) => rename.mutate({ id: w.id, name, from: w.name })}
               />
             ))}
           </div>
