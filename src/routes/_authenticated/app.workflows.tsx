@@ -168,7 +168,12 @@ function WorkflowsList() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {filtered.map((w) => (
-              <WorkflowCard key={w.id} w={w} onDelete={() => remove.mutate(w.id)} />
+              <WorkflowCard
+                key={w.id}
+                w={w}
+                onDelete={() => remove.mutate(w.id)}
+                onRename={(name) => rename.mutate({ id: w.id, name })}
+              />
             ))}
           </div>
         )}
@@ -177,32 +182,65 @@ function WorkflowsList() {
   );
 }
 
-function WorkflowCard({ w, onDelete }: { w: Row; onDelete: () => void }) {
+function WorkflowCard({
+  w, onDelete, onRename,
+}: {
+  w: Row;
+  onDelete: () => void;
+  onRename: (name: string) => void;
+}) {
   const TriggerIcon = w.trigger_type === "webhook" ? Webhook : w.trigger_type === "schedule" ? Clock : Hand;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(w.name);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
+
+  const commit = () => {
+    if (draft.trim() && draft.trim() !== w.name) onRename(draft);
+    setEditing(false);
+  };
+
   return (
     <div className="group rounded-2xl border border-border bg-card p-4 hover:border-foreground/30 transition">
       <div className="flex items-start justify-between">
-        <Link
-          to="/app/workflows/$id"
-          params={{ id: w.id }}
-          className="flex items-start gap-3 min-w-0 flex-1"
-        >
+        <div className="flex items-start gap-3 min-w-0 flex-1">
           <span className="inline-flex h-9 w-9 rounded-lg bg-gradient-flame/10 items-center justify-center shrink-0">
             <WorkflowIcon className="h-4 w-4 text-flame" />
           </span>
-          <div className="min-w-0">
-            <p className="font-medium truncate">{w.name}</p>
+          <div className="min-w-0 flex-1">
+            {editing ? (
+              <input
+                ref={inputRef}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={commit}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commit();
+                  if (e.key === "Escape") { setDraft(w.name); setEditing(false); }
+                }}
+                className="w-full font-medium bg-transparent outline-none border-b border-foreground/30"
+              />
+            ) : (
+              <Link to="/app/workflows/$id" params={{ id: w.id }} className="block">
+                <p className="font-medium truncate">{w.name}</p>
+              </Link>
+            )}
             <p className="text-xs text-muted-foreground truncate mt-0.5">
               {w.description || "No description"}
             </p>
           </div>
-        </Link>
+        </div>
         <DropdownMenu>
           <DropdownMenuTrigger className="opacity-0 group-hover:opacity-100 transition p-1 rounded hover:bg-muted">
             <MoreVertical className="h-4 w-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onDelete} className="text-destructive">
+            <DropdownMenuItem onClick={() => { setDraft(w.name); setEditing(true); }}>
+              <Pencil className="h-3.5 w-3.5 mr-2" /> Rename
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setConfirmOpen(true)} className="text-destructive">
               <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -230,6 +268,26 @@ function WorkflowCard({ w, onDelete }: { w: Row; onDelete: () => void }) {
           ))}
         </div>
       )}
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{w.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the workflow and its configuration. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={onDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
