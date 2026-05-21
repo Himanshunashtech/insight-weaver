@@ -1,10 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaces } from "@/hooks/use-workspaces";
-import { ArrowLeft, Save, Play, Power } from "lucide-react";
+import { ArrowLeft, Save, Play, Power, Pencil, Check, X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/app/workflows_/$id")({
   component: WorkflowEditor,
@@ -17,6 +22,7 @@ type Workflow = {
   description: string | null;
   status: "draft" | "active" | "paused" | "archived";
   trigger_type: "manual" | "webhook" | "schedule";
+  schedule: string | null;
   tags: string[];
 };
 
@@ -31,7 +37,7 @@ function WorkflowEditor() {
     queryFn: async (): Promise<Workflow> => {
       const { data, error } = await supabase
         .from("workflows")
-        .select("id, workspace_id, name, description, status, trigger_type, tags")
+        .select("id, workspace_id, name, description, status, trigger_type, schedule, tags")
         .eq("id", id)
         .single();
       if (error) throw error;
@@ -40,8 +46,12 @@ function WorkflowEditor() {
   });
 
   const [name, setName] = useState("");
+  const [renaming, setRenaming] = useState(false);
+  const [renameDraft, setRenameDraft] = useState("");
+  const renameRef = useRef<HTMLInputElement>(null);
   const [description, setDescription] = useState("");
   const [trigger, setTrigger] = useState<Workflow["trigger_type"]>("manual");
+  const [schedule, setSchedule] = useState("");
   const [tags, setTags] = useState("");
 
   useEffect(() => {
@@ -49,8 +59,18 @@ function WorkflowEditor() {
     setName(data.name);
     setDescription(data.description ?? "");
     setTrigger(data.trigger_type);
+    setSchedule(data.schedule ?? "");
     setTags(data.tags.join(", "));
   }, [data]);
+
+  useEffect(() => {
+    if (renaming) renameRef.current?.focus();
+  }, [renaming]);
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["workflow", id] });
+    qc.invalidateQueries({ queryKey: ["workflows", current?.id] });
+  };
 
   const save = useMutation({
     mutationFn: async () => {
@@ -60,15 +80,28 @@ function WorkflowEditor() {
           name: name.trim() || "Untitled workflow",
           description: description.trim() || null,
           trigger_type: trigger,
+          schedule: trigger === "schedule" ? (schedule.trim() || null) : null,
           tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
         })
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["workflow", id] });
-      qc.invalidateQueries({ queryKey: ["workflows", current?.id] });
-      toast.success("Saved");
+    onSuccess: () => { invalidate(); toast.success("Saved"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const renameMut = useMutation({
+    mutationFn: async (next: string) => {
+      const trimmed = next.trim() || "Untitled workflow";
+      const { error } = await supabase.from("workflows").update({ name: trimmed }).eq("id", id);
+      if (error) throw error;
+      return trimmed;
+    },
+    onSuccess: (next) => {
+      setName(next);
+      setRenaming(false);
+      invalidate();
+      toast.success("Renamed");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -81,9 +114,21 @@ function WorkflowEditor() {
       return next;
     },
     onSuccess: (next) => {
-      qc.invalidateQueries({ queryKey: ["workflow", id] });
-      qc.invalidateQueries({ queryKey: ["workflows", current?.id] });
+      invalidate();
       toast.success(next === "active" ? "Workflow activated" : "Workflow paused");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const remove = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("workflows").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["workflows", current?.id] });
+      toast.success("Workflow deleted");
+      navigate({ to: "/app/workflows" });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -92,26 +137,60 @@ function WorkflowEditor() {
     return <div className="max-w-5xl mx-auto p-6 text-sm text-muted-foreground">Loading…</div>;
   }
 
+  const isActive = data.status === "active";
+
   return (
     <div className="max-w-5xl mx-auto p-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
           <Link to="/app/workflows" className="p-2 rounded-lg hover:bg-muted">
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="text-2xl font-semibold tracking-tight bg-transparent outline-none min-w-0 truncate"
-          />
+          {renaming ? (
+            <div className="flex items-center gap-1 min-w-0">
+              <input
+                ref={renameRef}
+                value={renameDraft}
+                onChange={(e) => setRenameDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") renameMut.mutate(renameDraft);
+                  if (e.key === "Escape") setRenaming(false);
+                }}
+                className="text-2xl font-semibold tracking-tight bg-transparent outline-none border-b border-foreground/30 min-w-0"
+              />
+              <button
+                onClick={() => renameMut.mutate(renameDraft)}
+                disabled={renameMut.isPending}
+                className="p-1.5 rounded hover:bg-muted text-emerald-600"
+              >
+                <Check className="h-4 w-4" />
+              </button>
+              <button onClick={() => setRenaming(false)} className="p-1.5 rounded hover:bg-muted">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => { setRenameDraft(name); setRenaming(true); }}
+              className="group flex items-center gap-2 min-w-0 text-left"
+            >
+              <h1 className="text-2xl font-semibold tracking-tight truncate">{name}</h1>
+              <Pencil className="h-3.5 w-3.5 opacity-0 group-hover:opacity-60 transition" />
+            </button>
+          )}
+          <StatusPill status={data.status} />
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => toggleActive.mutate()}
             disabled={toggleActive.isPending}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm disabled:opacity-50 transition ${
+              isActive
+                ? "border-amber-500/40 text-amber-700 hover:bg-amber-500/10"
+                : "border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10"
+            }`}
           >
-            <Power className="h-3.5 w-3.5" /> {data.status === "active" ? "Pause" : "Activate"}
+            <Power className="h-3.5 w-3.5" /> {isActive ? "Pause" : "Activate"}
           </button>
           <button
             onClick={() => toast.info("Test run lands with the execution engine.")}
@@ -126,6 +205,30 @@ function WorkflowEditor() {
           >
             <Save className="h-3.5 w-3.5" /> {save.isPending ? "Saving…" : "Save"}
           </button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button className="inline-flex items-center gap-1.5 rounded-full border border-destructive/40 text-destructive px-3 py-1.5 text-sm hover:bg-destructive/10">
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this workflow?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete "{name}" and any associated configuration. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => remove.mutate()}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
@@ -166,6 +269,25 @@ function WorkflowEditor() {
                 />
               </div>
             </div>
+            {trigger === "schedule" && (
+              <div>
+                <label className="text-xs font-medium">Schedule (cron expression)</label>
+                <input
+                  value={schedule}
+                  onChange={(e) => setSchedule(e.target.value)}
+                  placeholder="0 9 * * 1-5"
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Standard cron syntax. Example: <code className="font-mono">0 9 * * 1-5</code> runs weekdays at 9am.
+                </p>
+              </div>
+            )}
+            {trigger === "webhook" && (
+              <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                Webhook URL will be generated once the workflow is activated.
+              </div>
+            )}
           </div>
         </div>
 
@@ -181,5 +303,19 @@ function WorkflowEditor() {
         Visual canvas (React Flow) and AI generation arrive in the next phase.
       </div>
     </div>
+  );
+}
+
+function StatusPill({ status }: { status: Workflow["status"] }) {
+  const map = {
+    active: "bg-emerald-500/15 text-emerald-700",
+    draft: "bg-muted text-foreground/70",
+    paused: "bg-amber-500/15 text-amber-700",
+    archived: "bg-muted text-muted-foreground",
+  } as const;
+  return (
+    <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${map[status]}`}>
+      {status}
+    </span>
   );
 }
