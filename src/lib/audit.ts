@@ -22,6 +22,6 @@ export async function logWorkflowEvent(params: {
     workflow_id: params.workflowId,
     actor_id: uid,
     action: params.action,
-    details: params.details ?? {},
+    details: (params.details ?? {}) as never,
   });
 }
