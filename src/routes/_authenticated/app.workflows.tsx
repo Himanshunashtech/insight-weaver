@@ -101,6 +101,19 @@ function WorkflowsList() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const rename = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const trimmed = name.trim() || "Untitled workflow";
+      const { error } = await supabase.from("workflows").update({ name: trimmed }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["workflows", wsId] });
+      toast.success("Renamed");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <div className="max-w-7xl mx-auto p-6">
       <div className="flex items-end justify-between flex-wrap gap-3">
