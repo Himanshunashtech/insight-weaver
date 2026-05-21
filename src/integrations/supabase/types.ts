@@ -56,6 +56,36 @@ export type Database = {
         }
         Relationships: []
       }
+      workflow_audit_events: {
+        Row: {
+          action: string
+          actor_id: string
+          created_at: string
+          details: Json
+          id: string
+          workflow_id: string
+          workspace_id: string
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          created_at?: string
+          details?: Json
+          id?: string
+          workflow_id: string
+          workspace_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          workflow_id?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       workflows: {
         Row: {
           created_at: string
