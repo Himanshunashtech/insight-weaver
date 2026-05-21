@@ -10,6 +10,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { logWorkflowEvent } from "@/lib/audit";
+import { WorkflowAuditLog } from "@/components/app/WorkflowAuditLog";
 
 export const Route = createFileRoute("/_authenticated/app/workflows_/$id")({
   component: WorkflowEditor,
@@ -70,21 +72,41 @@ function WorkflowEditor() {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["workflow", id] });
     qc.invalidateQueries({ queryKey: ["workflows", current?.id] });
+    qc.invalidateQueries({ queryKey: ["workflow-audit", id] });
   };
 
   const save = useMutation({
     mutationFn: async () => {
+      const nextName = name.trim() || "Untitled workflow";
+      const nextDesc = description.trim() || null;
+      const nextSchedule = trigger === "schedule" ? (schedule.trim() || null) : null;
+      const nextTags = tags.split(",").map((t) => t.trim()).filter(Boolean);
+      const fields: string[] = [];
+      if (data) {
+        if (nextDesc !== (data.description ?? null)) fields.push("description");
+        if (trigger !== data.trigger_type) fields.push("trigger");
+        if (nextSchedule !== (data.schedule ?? null)) fields.push("schedule");
+        if (JSON.stringify(nextTags) !== JSON.stringify(data.tags)) fields.push("tags");
+      }
       const { error } = await supabase
         .from("workflows")
         .update({
-          name: name.trim() || "Untitled workflow",
-          description: description.trim() || null,
+          name: nextName,
+          description: nextDesc,
           trigger_type: trigger,
-          schedule: trigger === "schedule" ? (schedule.trim() || null) : null,
-          tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+          schedule: nextSchedule,
+          tags: nextTags,
         })
         .eq("id", id);
       if (error) throw error;
+      if (data && fields.length) {
+        await logWorkflowEvent({
+          workspaceId: data.workspace_id,
+          workflowId: id,
+          action: "updated",
+          details: { fields },
+        });
+      }
     },
     onSuccess: () => { invalidate(); toast.success("Saved"); },
     onError: (e: Error) => toast.error(e.message),
@@ -93,8 +115,17 @@ function WorkflowEditor() {
   const renameMut = useMutation({
     mutationFn: async (next: string) => {
       const trimmed = next.trim() || "Untitled workflow";
+      const from = data?.name;
       const { error } = await supabase.from("workflows").update({ name: trimmed }).eq("id", id);
       if (error) throw error;
+      if (data && trimmed !== from) {
+        await logWorkflowEvent({
+          workspaceId: data.workspace_id,
+          workflowId: id,
+          action: "renamed",
+          details: { from, to: trimmed },
+        });
+      }
       return trimmed;
     },
     onSuccess: (next) => {
@@ -111,6 +142,13 @@ function WorkflowEditor() {
       const next = data?.status === "active" ? "paused" : "active";
       const { error } = await supabase.from("workflows").update({ status: next }).eq("id", id);
       if (error) throw error;
+      if (data) {
+        await logWorkflowEvent({
+          workspaceId: data.workspace_id,
+          workflowId: id,
+          action: next === "active" ? "activated" : "paused",
+        });
+      }
       return next;
     },
     onSuccess: (next) => {
@@ -122,6 +160,14 @@ function WorkflowEditor() {
 
   const remove = useMutation({
     mutationFn: async () => {
+      if (data) {
+        await logWorkflowEvent({
+          workspaceId: data.workspace_id,
+          workflowId: id,
+          action: "deleted",
+          details: { name: data.name },
+        });
+      }
       const { error } = await supabase.from("workflows").delete().eq("id", id);
       if (error) throw error;
     },
@@ -302,6 +348,8 @@ function WorkflowEditor() {
       <div className="mt-4 rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
         Visual canvas (React Flow) and AI generation arrive in the next phase.
       </div>
+
+      <WorkflowAuditLog workflowId={id} />
     </div>
   );
 }
