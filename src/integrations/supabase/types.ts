@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      integrations: {
+        Row: {
+          config: Json
+          created_at: string
+          created_by: string
+          enabled: boolean
+          id: string
+          kind: string
+          name: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          created_by: string
+          enabled?: boolean
+          id?: string
+          kind: string
+          name: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          created_by?: string
+          enabled?: boolean
+          id?: string
+          kind?: string
+          name?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -81,6 +117,104 @@ export type Database = {
           created_at?: string
           details?: Json
           id?: string
+          workflow_id?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      workflow_run_steps: {
+        Row: {
+          error: string | null
+          finished_at: string | null
+          id: string
+          input: Json
+          node_id: string
+          node_label: string | null
+          node_type: string
+          output: Json
+          run_id: string
+          started_at: string
+          status: Database["public"]["Enums"]["run_status"]
+          step_order: number
+          workspace_id: string
+        }
+        Insert: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          input?: Json
+          node_id: string
+          node_label?: string | null
+          node_type: string
+          output?: Json
+          run_id: string
+          started_at?: string
+          status?: Database["public"]["Enums"]["run_status"]
+          step_order?: number
+          workspace_id: string
+        }
+        Update: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          input?: Json
+          node_id?: string
+          node_label?: string | null
+          node_type?: string
+          output?: Json
+          run_id?: string
+          started_at?: string
+          status?: Database["public"]["Enums"]["run_status"]
+          step_order?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_run_steps_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_runs: {
+        Row: {
+          error: string | null
+          finished_at: string | null
+          id: string
+          input: Json
+          output: Json
+          started_at: string
+          started_by: string
+          status: Database["public"]["Enums"]["run_status"]
+          trigger: string
+          workflow_id: string
+          workspace_id: string
+        }
+        Insert: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          input?: Json
+          output?: Json
+          started_at?: string
+          started_by: string
+          status?: Database["public"]["Enums"]["run_status"]
+          trigger?: string
+          workflow_id: string
+          workspace_id: string
+        }
+        Update: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          input?: Json
+          output?: Json
+          started_at?: string
+          started_by?: string
+          status?: Database["public"]["Enums"]["run_status"]
+          trigger?: string
           workflow_id?: string
           workspace_id?: string
         }
@@ -224,6 +358,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      run_status: "queued" | "running" | "succeeded" | "failed" | "cancelled"
       workflow_status: "draft" | "active" | "paused" | "archived"
       workflow_trigger: "manual" | "webhook" | "schedule"
       workspace_role: "owner" | "admin" | "builder" | "viewer"
@@ -355,6 +490,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      run_status: ["queued", "running", "succeeded", "failed", "cancelled"],
       workflow_status: ["draft", "active", "paused", "archived"],
       workflow_trigger: ["manual", "webhook", "schedule"],
       workspace_role: ["owner", "admin", "builder", "viewer"],

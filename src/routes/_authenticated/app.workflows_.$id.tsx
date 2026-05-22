@@ -1,9 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaces } from "@/hooks/use-workspaces";
-import { ArrowLeft, Save, Play, Power, Pencil, Check, X, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Power, Pencil, Check, X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -12,6 +13,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { logWorkflowEvent } from "@/lib/audit";
 import { WorkflowAuditLog } from "@/components/app/WorkflowAuditLog";
+import { WorkflowCanvas, type Graph } from "@/components/workflow/WorkflowCanvas";
+import { runWorkflow } from "@/lib/ai-workflow.functions";
 
 export const Route = createFileRoute("/_authenticated/app/workflows_/$id")({
   component: WorkflowEditor,
@@ -239,12 +242,6 @@ function WorkflowEditor() {
             <Power className="h-3.5 w-3.5" /> {isActive ? "Pause" : "Activate"}
           </button>
           <button
-            onClick={() => toast.info("Test run lands with the execution engine.")}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted"
-          >
-            <Play className="h-3.5 w-3.5" /> Test run
-          </button>
-          <button
             onClick={() => save.mutate()}
             disabled={save.isPending}
             className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-4 py-1.5 text-sm font-medium hover:bg-foreground/90 disabled:opacity-50"
@@ -345,14 +342,67 @@ function WorkflowEditor() {
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-        Visual canvas (React Flow) and AI generation arrive in the next phase.
+      <div className="mt-4">
+        <CanvasBlock workflowId={id} workspaceId={data.workspace_id} />
       </div>
 
       <WorkflowAuditLog workflowId={id} />
     </div>
   );
 }
+
+function CanvasBlock({ workflowId, workspaceId }: { workflowId: string; workspaceId: string }) {
+  const qc = useQueryClient();
+  const runFn = useServerFn(runWorkflow);
+  const [running, setRunning] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const { data: graph } = useQuery({
+    queryKey: ["workflow-graph", workflowId],
+    queryFn: async (): Promise<Graph> => {
+      const { data, error } = await supabase.from("workflows").select("graph").eq("id", workflowId).single();
+      if (error) throw error;
+      const g = (data?.graph as any) ?? { nodes: [], edges: [] };
+      return { nodes: g.nodes ?? [], edges: g.edges ?? [] };
+    },
+  });
+
+  const onSave = async (g: Graph) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("workflows").update({ graph: g as any }).eq("id", workflowId);
+      if (error) throw error;
+      await logWorkflowEvent({ workspaceId, workflowId, action: "canvas_saved", details: { nodes: g.nodes.length, edges: g.edges.length } });
+      qc.invalidateQueries({ queryKey: ["workflow-graph", workflowId] });
+      qc.invalidateQueries({ queryKey: ["workflow-audit", workflowId] });
+      toast.success("Canvas saved");
+    } catch (e: any) { toast.error(e?.message || "Save failed"); }
+    finally { setSaving(false); }
+  };
+
+  const onRun = async () => {
+    setRunning(true);
+    try {
+      const r = await runFn({ data: { workflowId } });
+      toast.success(`Run ${r.status}`);
+      qc.invalidateQueries({ queryKey: ["runs"] });
+    } catch (e: any) { toast.error(e?.message || "Run failed"); }
+    finally { setRunning(false); }
+  };
+
+  return (
+    <WorkflowCanvas
+      workflowId={workflowId}
+      initial={graph ?? { nodes: [], edges: [] }}
+      onSave={onSave}
+      onRun={onRun}
+      onRegenerated={() => qc.invalidateQueries({ queryKey: ["workflow-graph", workflowId] })}
+      saving={saving}
+      running={running}
+    />
+  );
+}
+
 
 function StatusPill({ status }: { status: Workflow["status"] }) {
   const map = {
