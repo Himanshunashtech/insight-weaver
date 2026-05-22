@@ -401,6 +401,8 @@ function CanvasBlock({ workflowId, workspaceId }: { workflowId: string; workspac
       running={running}
     />
   );
+}
+
 
 function StatusPill({ status }: { status: Workflow["status"] }) {
   const map = {
