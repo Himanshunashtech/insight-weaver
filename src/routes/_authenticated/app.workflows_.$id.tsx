@@ -242,12 +242,6 @@ function WorkflowEditor() {
             <Power className="h-3.5 w-3.5" /> {isActive ? "Pause" : "Activate"}
           </button>
           <button
-            onClick={() => toast.info("Test run lands with the execution engine.")}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm hover:bg-muted"
-          >
-            <Play className="h-3.5 w-3.5" /> Test run
-          </button>
-          <button
             onClick={() => save.mutate()}
             disabled={save.isPending}
             className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-4 py-1.5 text-sm font-medium hover:bg-foreground/90 disabled:opacity-50"
