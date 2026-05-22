@@ -6,7 +6,10 @@ export type WorkflowAuditAction =
   | "updated"
   | "activated"
   | "paused"
-  | "deleted";
+  | "deleted"
+  | "canvas_saved"
+  | "ai_generated"
+  | "run_started";
 
 export async function logWorkflowEvent(params: {
   workspaceId: string;
