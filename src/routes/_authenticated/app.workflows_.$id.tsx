@@ -1,9 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaces } from "@/hooks/use-workspaces";
-import { ArrowLeft, Save, Play, Power, Pencil, Check, X, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Power, Pencil, Check, X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -12,6 +13,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { logWorkflowEvent } from "@/lib/audit";
 import { WorkflowAuditLog } from "@/components/app/WorkflowAuditLog";
+import { WorkflowCanvas, type Graph } from "@/components/workflow/WorkflowCanvas";
+import { runWorkflow } from "@/lib/ai-workflow.functions";
 
 export const Route = createFileRoute("/_authenticated/app/workflows_/$id")({
   component: WorkflowEditor,
