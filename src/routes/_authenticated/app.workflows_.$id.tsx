@@ -342,14 +342,65 @@ function WorkflowEditor() {
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-        Visual canvas (React Flow) and AI generation arrive in the next phase.
+      <div className="mt-4">
+        <CanvasBlock workflowId={id} workspaceId={data.workspace_id} />
       </div>
 
       <WorkflowAuditLog workflowId={id} />
     </div>
   );
 }
+
+function CanvasBlock({ workflowId, workspaceId }: { workflowId: string; workspaceId: string }) {
+  const qc = useQueryClient();
+  const runFn = useServerFn(runWorkflow);
+  const [running, setRunning] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const { data: graph } = useQuery({
+    queryKey: ["workflow-graph", workflowId],
+    queryFn: async (): Promise<Graph> => {
+      const { data, error } = await supabase.from("workflows").select("graph").eq("id", workflowId).single();
+      if (error) throw error;
+      const g = (data?.graph as any) ?? { nodes: [], edges: [] };
+      return { nodes: g.nodes ?? [], edges: g.edges ?? [] };
+    },
+  });
+
+  const onSave = async (g: Graph) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("workflows").update({ graph: g as any }).eq("id", workflowId);
+      if (error) throw error;
+      await logWorkflowEvent({ workspaceId, workflowId, action: "canvas_saved", details: { nodes: g.nodes.length, edges: g.edges.length } });
+      qc.invalidateQueries({ queryKey: ["workflow-graph", workflowId] });
+      qc.invalidateQueries({ queryKey: ["workflow-audit", workflowId] });
+      toast.success("Canvas saved");
+    } catch (e: any) { toast.error(e?.message || "Save failed"); }
+    finally { setSaving(false); }
+  };
+
+  const onRun = async () => {
+    setRunning(true);
+    try {
+      const r = await runFn({ data: { workflowId } });
+      toast.success(`Run ${r.status}`);
+      qc.invalidateQueries({ queryKey: ["runs"] });
+    } catch (e: any) { toast.error(e?.message || "Run failed"); }
+    finally { setRunning(false); }
+  };
+
+  return (
+    <WorkflowCanvas
+      workflowId={workflowId}
+      initial={graph ?? { nodes: [], edges: [] }}
+      onSave={onSave}
+      onRun={onRun}
+      onRegenerated={() => qc.invalidateQueries({ queryKey: ["workflow-graph", workflowId] })}
+      saving={saving}
+      running={running}
+    />
+  );
 
 function StatusPill({ status }: { status: Workflow["status"] }) {
   const map = {
