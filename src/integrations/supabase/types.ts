@@ -14,6 +14,193 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_conversations: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          title: string | null
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          title?: string | null
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          title?: string | null
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_conversations_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          role: string
+          workspace_id: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          role: string
+          workspace_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "agent_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agents: {
+        Row: {
+          avatar: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          model: string
+          name: string
+          system_prompt: string
+          temperature: number
+          tools: Json
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          avatar?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          model?: string
+          name: string
+          system_prompt?: string
+          temperature?: number
+          tools?: Json
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          avatar?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          model?: string
+          name?: string
+          system_prompt?: string
+          temperature?: number
+          tools?: Json
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      api_keys: {
+        Row: {
+          created_at: string
+          created_by: string
+          hash: string
+          id: string
+          last_used_at: string | null
+          name: string
+          prefix: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          hash: string
+          id?: string
+          last_used_at?: string | null
+          name: string
+          prefix: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          hash?: string
+          id?: string
+          last_used_at?: string | null
+          name?: string
+          prefix?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          created_at: string
+          extracted: Json | null
+          id: string
+          mime_type: string | null
+          name: string
+          size_bytes: number
+          status: string
+          storage_path: string
+          uploaded_by: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          extracted?: Json | null
+          id?: string
+          mime_type?: string | null
+          name: string
+          size_bytes?: number
+          status?: string
+          storage_path: string
+          uploaded_by: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          extracted?: Json | null
+          id?: string
+          mime_type?: string | null
+          name?: string
+          size_bytes?: number
+          status?: string
+          storage_path?: string
+          uploaded_by?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       integrations: {
         Row: {
           config: Json
