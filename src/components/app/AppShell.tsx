@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { type ReactNode } from "react";
 import {
-  LayoutDashboard, Workflow, PlayCircle, FileText, Plug,
+  LayoutDashboard, Workflow, PlayCircle, FileText, Plug, Bot,
   KeyRound, Users, Settings, Search, Bell, LogOut, ChevronDown, Check, Plus,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -15,6 +15,7 @@ import { CreateWorkspaceDialog } from "./CreateWorkspaceDialog";
 const nav = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/app/workflows", label: "Workflows", icon: Workflow },
+  { to: "/app/agents", label: "Agents", icon: Bot },
   { to: "/app/runs", label: "Runs", icon: PlayCircle },
   { to: "/app/documents", label: "Documents", icon: FileText },
   { to: "/app/integrations", label: "Integrations", icon: Plug },

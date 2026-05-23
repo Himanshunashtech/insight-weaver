@@ -32,6 +32,7 @@ import { Route as AuthenticatedAppRunsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedAppIntegrationsRouteImport } from './routes/_authenticated/app.integrations'
 import { Route as AuthenticatedAppDocumentsRouteImport } from './routes/_authenticated/app.documents'
 import { Route as AuthenticatedAppApiRouteImport } from './routes/_authenticated/app.api'
+import { Route as AuthenticatedAppAgentsRouteImport } from './routes/_authenticated/app.agents'
 import { Route as AuthenticatedAppWorkflowsIdRouteImport } from './routes/_authenticated/app.workflows_.$id'
 
 const SolutionsRoute = SolutionsRouteImport.update({
@@ -152,6 +153,11 @@ const AuthenticatedAppApiRoute = AuthenticatedAppApiRouteImport.update({
   path: '/api',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppAgentsRoute = AuthenticatedAppAgentsRouteImport.update({
+  id: '/agents',
+  path: '/agents',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedAppWorkflowsIdRoute =
   AuthenticatedAppWorkflowsIdRouteImport.update({
     id: '/workflows_/$id',
@@ -174,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/industries/$slug': typeof IndustriesSlugRoute
   '/industries/': typeof IndustriesIndexRoute
+  '/app/agents': typeof AuthenticatedAppAgentsRoute
   '/app/api': typeof AuthenticatedAppApiRoute
   '/app/documents': typeof AuthenticatedAppDocumentsRoute
   '/app/integrations': typeof AuthenticatedAppIntegrationsRoute
@@ -198,6 +205,7 @@ export interface FileRoutesByTo {
   '/solutions': typeof SolutionsRoute
   '/industries/$slug': typeof IndustriesSlugRoute
   '/industries': typeof IndustriesIndexRoute
+  '/app/agents': typeof AuthenticatedAppAgentsRoute
   '/app/api': typeof AuthenticatedAppApiRoute
   '/app/documents': typeof AuthenticatedAppDocumentsRoute
   '/app/integrations': typeof AuthenticatedAppIntegrationsRoute
@@ -225,6 +233,7 @@ export interface FileRoutesById {
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/industries/$slug': typeof IndustriesSlugRoute
   '/industries/': typeof IndustriesIndexRoute
+  '/_authenticated/app/agents': typeof AuthenticatedAppAgentsRoute
   '/_authenticated/app/api': typeof AuthenticatedAppApiRoute
   '/_authenticated/app/documents': typeof AuthenticatedAppDocumentsRoute
   '/_authenticated/app/integrations': typeof AuthenticatedAppIntegrationsRoute
@@ -252,6 +261,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/industries/$slug'
     | '/industries/'
+    | '/app/agents'
     | '/app/api'
     | '/app/documents'
     | '/app/integrations'
@@ -276,6 +286,7 @@ export interface FileRouteTypes {
     | '/solutions'
     | '/industries/$slug'
     | '/industries'
+    | '/app/agents'
     | '/app/api'
     | '/app/documents'
     | '/app/integrations'
@@ -302,6 +313,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app'
     | '/industries/$slug'
     | '/industries/'
+    | '/_authenticated/app/agents'
     | '/_authenticated/app/api'
     | '/_authenticated/app/documents'
     | '/_authenticated/app/integrations'
@@ -493,6 +505,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppApiRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/agents': {
+      id: '/_authenticated/app/agents'
+      path: '/agents'
+      fullPath: '/app/agents'
+      preLoaderRoute: typeof AuthenticatedAppAgentsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/workflows_/$id': {
       id: '/_authenticated/app/workflows_/$id'
       path: '/workflows/$id'
@@ -504,6 +523,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppAgentsRoute: typeof AuthenticatedAppAgentsRoute
   AuthenticatedAppApiRoute: typeof AuthenticatedAppApiRoute
   AuthenticatedAppDocumentsRoute: typeof AuthenticatedAppDocumentsRoute
   AuthenticatedAppIntegrationsRoute: typeof AuthenticatedAppIntegrationsRoute
@@ -516,6 +536,7 @@ interface AuthenticatedAppRouteChildren {
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppAgentsRoute: AuthenticatedAppAgentsRoute,
   AuthenticatedAppApiRoute: AuthenticatedAppApiRoute,
   AuthenticatedAppDocumentsRoute: AuthenticatedAppDocumentsRoute,
   AuthenticatedAppIntegrationsRoute: AuthenticatedAppIntegrationsRoute,
