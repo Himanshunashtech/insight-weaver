@@ -33,6 +33,7 @@ import { Route as AuthenticatedAppIntegrationsRouteImport } from './routes/_auth
 import { Route as AuthenticatedAppDocumentsRouteImport } from './routes/_authenticated/app.documents'
 import { Route as AuthenticatedAppApiRouteImport } from './routes/_authenticated/app.api'
 import { Route as AuthenticatedAppAgentsRouteImport } from './routes/_authenticated/app.agents'
+import { Route as ApiPublicWfPathRouteImport } from './routes/api/public/wf.$path'
 import { Route as AuthenticatedAppWorkflowsIdRouteImport } from './routes/_authenticated/app.workflows_.$id'
 
 const SolutionsRoute = SolutionsRouteImport.update({
@@ -158,6 +159,11 @@ const AuthenticatedAppAgentsRoute = AuthenticatedAppAgentsRouteImport.update({
   path: '/agents',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const ApiPublicWfPathRoute = ApiPublicWfPathRouteImport.update({
+  id: '/api/public/wf/$path',
+  path: '/api/public/wf/$path',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAppWorkflowsIdRoute =
   AuthenticatedAppWorkflowsIdRouteImport.update({
     id: '/workflows_/$id',
@@ -190,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/app/workflows': typeof AuthenticatedAppWorkflowsRoute
   '/app/': typeof AuthenticatedAppIndexRoute
   '/app/workflows/$id': typeof AuthenticatedAppWorkflowsIdRoute
+  '/api/public/wf/$path': typeof ApiPublicWfPathRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -215,6 +222,7 @@ export interface FileRoutesByTo {
   '/app/workflows': typeof AuthenticatedAppWorkflowsRoute
   '/app': typeof AuthenticatedAppIndexRoute
   '/app/workflows/$id': typeof AuthenticatedAppWorkflowsIdRoute
+  '/api/public/wf/$path': typeof ApiPublicWfPathRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -243,6 +251,7 @@ export interface FileRoutesById {
   '/_authenticated/app/workflows': typeof AuthenticatedAppWorkflowsRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
   '/_authenticated/app/workflows_/$id': typeof AuthenticatedAppWorkflowsIdRoute
+  '/api/public/wf/$path': typeof ApiPublicWfPathRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -271,6 +280,7 @@ export interface FileRouteTypes {
     | '/app/workflows'
     | '/app/'
     | '/app/workflows/$id'
+    | '/api/public/wf/$path'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -296,6 +306,7 @@ export interface FileRouteTypes {
     | '/app/workflows'
     | '/app'
     | '/app/workflows/$id'
+    | '/api/public/wf/$path'
   id:
     | '__root__'
     | '/'
@@ -323,6 +334,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/workflows'
     | '/_authenticated/app/'
     | '/_authenticated/app/workflows_/$id'
+    | '/api/public/wf/$path'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -340,6 +352,7 @@ export interface RootRouteChildren {
   SolutionsRoute: typeof SolutionsRoute
   IndustriesSlugRoute: typeof IndustriesSlugRoute
   IndustriesIndexRoute: typeof IndustriesIndexRoute
+  ApiPublicWfPathRoute: typeof ApiPublicWfPathRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -512,6 +525,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppAgentsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/api/public/wf/$path': {
+      id: '/api/public/wf/$path'
+      path: '/api/public/wf/$path'
+      fullPath: '/api/public/wf/$path'
+      preLoaderRoute: typeof ApiPublicWfPathRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/app/workflows_/$id': {
       id: '/_authenticated/app/workflows_/$id'
       path: '/workflows/$id'
@@ -578,6 +598,7 @@ const rootRouteChildren: RootRouteChildren = {
   SolutionsRoute: SolutionsRoute,
   IndustriesSlugRoute: IndustriesSlugRoute,
   IndustriesIndexRoute: IndustriesIndexRoute,
+  ApiPublicWfPathRoute: ApiPublicWfPathRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

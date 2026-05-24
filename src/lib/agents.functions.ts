@@ -159,8 +159,9 @@ export const chatWithAgent = createServerFn({ method: "POST" })
       role: "user", content: data.message,
     });
 
-    const enabledTools = Array.isArray(agent.tools) && agent.tools.length > 0
-      ? AGENT_TOOLS.filter((t) => agent.tools.includes(t.function.name))
+    const toolNames = Array.isArray(agent.tools) ? (agent.tools as unknown[]).map(String) : [];
+    const enabledTools = toolNames.length > 0
+      ? AGENT_TOOLS.filter((t) => toolNames.includes(t.function.name))
       : AGENT_TOOLS;
 
     const messages: any[] = [
