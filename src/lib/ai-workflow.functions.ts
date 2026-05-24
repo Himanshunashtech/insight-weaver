@@ -15,13 +15,63 @@ const KINDS = [
   "action.transform","action.document","action.output",
 ] as const;
 
+const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
+
+// ---------- helpers ----------
+function interpolate(tpl: string, ctx: Record<string, any>): string {
+  if (typeof tpl !== "string") return tpl;
+  return tpl.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, path: string) => {
+    const parts = path.split(".");
+    let v: any = ctx;
+    for (const p of parts) v = v == null ? v : v[p];
+    return v == null ? "" : typeof v === "string" ? v : JSON.stringify(v);
+  });
+}
+
+function safeEval(expr: string, ctx: Record<string, any>): any {
+  try {
+    // eslint-disable-next-line no-new-func
+    const fn = new Function("ctx", "input", `with(ctx){ return (${expr}); }`);
+    return fn(ctx, ctx.input ?? {});
+  } catch {
+    return undefined;
+  }
+}
+
+async function callAI(opts: {
+  model?: string;
+  system: string;
+  user: string;
+  json?: boolean;
+  tools?: any[];
+}): Promise<any> {
+  const apiKey = process.env.LOVABLE_API_KEY;
+  if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+  const body: any = {
+    model: opts.model || "google/gemini-3-flash-preview",
+    messages: [
+      { role: "system", content: opts.system },
+      { role: "user", content: opts.user },
+    ],
+  };
+  if (opts.json) body.response_format = { type: "json_object" };
+  if (opts.tools) body.tools = opts.tools;
+  const r = await fetch(GATEWAY, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (r.status === 429) throw new Error("AI rate limit exceeded");
+  if (r.status === 402) throw new Error("AI credits exhausted");
+  if (!r.ok) throw new Error(`AI gateway ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  return r.json();
+}
+
+// ---------- generation ----------
 export const generateWorkflowGraph = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => GenInput.parse(d))
   .handler(async ({ data, context }) => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
-
     const { supabase } = context;
     const { data: wf, error: wfErr } = await supabase
       .from("workflows").select("id, workspace_id, name").eq("id", data.workflowId).single();
@@ -33,7 +83,7 @@ Available node kinds: ${KINDS.join(", ")}.
 Rules:
 - Start with a single trigger node (trigger.manual/webhook/schedule).
 - Use ai.agent or ai.completion for any AI step.
-- Use logic.condition for branching.
+- Use logic.condition for branching (provide an "expression" in config).
 - End with action.output if returning data.
 - Position nodes left-to-right with x increments of 280 and y around 100, branches offset by 180.
 - Keep node ids short and unique (n1, n2, ...).
@@ -83,29 +133,8 @@ Rules:
       },
     };
 
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: data.prompt },
-        ],
-        tools: [tool],
-        tool_choice: { type: "function", function: { name: "emit_workflow" } },
-      }),
-    });
-
-    if (resp.status === 429) throw new Error("Rate limit exceeded. Please retry shortly.");
-    if (resp.status === 402) throw new Error("Lovable AI credits exhausted. Add funds in Settings → Workspace → Usage.");
-    if (!resp.ok) {
-      const t = await resp.text();
-      throw new Error(`AI gateway error: ${resp.status} ${t.slice(0,200)}`);
-    }
-
-    const json = await resp.json();
-    const call = json.choices?.[0]?.message?.tool_calls?.[0];
+    const j = await callAI({ system: systemPrompt, user: data.prompt, tools: [tool] });
+    const call = j.choices?.[0]?.message?.tool_calls?.[0];
     if (!call?.function?.arguments) throw new Error("AI returned no workflow");
     let parsed: { name: string; description?: string; nodes: any[]; edges: any[] };
     try { parsed = JSON.parse(call.function.arguments); }
@@ -135,102 +164,280 @@ Rules:
     return { graph, name: parsed.name, description: parsed.description ?? null };
   });
 
-const RunInput = z.object({ workflowId: z.string().uuid() });
+// ---------- run ----------
+const RunInput = z.object({
+  workflowId: z.string().uuid(),
+  input: z.record(z.unknown()).optional(),
+  trigger: z.enum(["manual","webhook","schedule"]).optional(),
+});
 
 export const runWorkflow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => RunInput.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data: wf, error } = await supabase
-      .from("workflows").select("id, workspace_id, graph").eq("id", data.workflowId).single();
-    if (error || !wf) throw new Error("Workflow not found");
+    const result = await executeWorkflow({
+      supabase,
+      workflowId: data.workflowId,
+      input: data.input ?? {},
+      trigger: data.trigger ?? "manual",
+      startedBy: userId,
+    });
+    return result;
+  });
 
-    const graph = (wf.graph as { nodes: any[]; edges: any[] }) ?? { nodes: [], edges: [] };
+// ---------- core executor (shared by manual + webhook) ----------
+export async function executeWorkflow(opts: {
+  supabase: any;
+  workflowId: string;
+  input: Record<string, unknown>;
+  trigger: "manual"|"webhook"|"schedule";
+  startedBy: string;
+}) {
+  const { supabase, workflowId, input, trigger, startedBy } = opts;
 
-    const { data: run, error: runErr } = await supabase.from("workflow_runs").insert({
-      workspace_id: wf.workspace_id,
-      workflow_id: wf.id,
-      started_by: userId,
-      status: "running",
-      trigger: "manual",
-    }).select("id").single();
-    if (runErr) throw new Error(runErr.message);
+  const { data: wf, error } = await supabase
+    .from("workflows").select("id, workspace_id, graph, status").eq("id", workflowId).single();
+  if (error || !wf) throw new Error("Workflow not found");
 
-    const sorted = topoSort(graph.nodes, graph.edges);
-    let stepOrder = 0;
-    let context_data: any = { startedAt: new Date().toISOString() };
-    let failed = false;
-    let failedMsg: string | null = null;
+  const graph = (wf.graph as { nodes: any[]; edges: any[] }) ?? { nodes: [], edges: [] };
 
-    for (const node of sorted) {
-      stepOrder++;
-      const kind = node.data?.kind as string;
-      const label = node.data?.label as string;
-      const cfg = node.data?.config ?? {};
-      let status: "succeeded"|"failed" = "succeeded";
-      let output: any = {};
-      let err: string | null = null;
+  const { data: run, error: runErr } = await supabase.from("workflow_runs").insert({
+    workspace_id: wf.workspace_id,
+    workflow_id: wf.id,
+    started_by: startedBy,
+    status: "running",
+    trigger,
+    input,
+  }).select("id").single();
+  if (runErr) throw new Error(runErr.message);
 
-      try {
-        if (kind === "ai.completion" || kind === "ai.agent") {
-          const apiKey = process.env.LOVABLE_API_KEY;
-          if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
-          const sys = kind === "ai.agent" ? (cfg.system || "You are a helpful agent.") : "You are a helpful assistant.";
-          const user = kind === "ai.agent" ? (cfg.goal || "Proceed with the task.") : (cfg.prompt || "Hello");
-          const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: cfg.model || "google/gemini-3-flash-preview",
-              messages: [
-                { role: "system", content: sys },
-                { role: "user", content: `${user}\n\nContext: ${JSON.stringify(context_data).slice(0,1500)}` },
-              ],
-            }),
-          });
-          if (!r.ok) throw new Error(`AI ${r.status}`);
-          const j = await r.json();
-          output = { text: j.choices?.[0]?.message?.content ?? "" };
-        } else if (kind === "action.http") {
-          output = { simulated: true, method: cfg.method, url: cfg.url, status: 200 };
-        } else {
-          output = { simulated: true, kind };
-        }
-        context_data = { ...context_data, [node.id]: output };
-      } catch (e: any) {
-        status = "failed";
-        err = e?.message || String(e);
-        failed = true;
-        failedMsg = err;
-      }
+  const sorted = topoSort(graph.nodes, graph.edges);
+  const ctx: Record<string, any> = { input, trigger, startedAt: new Date().toISOString() };
+  const skipped = new Set<string>();
+  let stepOrder = 0;
+  let failed = false;
+  let failedMsg: string | null = null;
 
+  // Map condition edges by source (label "true"/"false") for branching
+  const edgesBySource = new Map<string, any[]>();
+  for (const e of graph.edges) {
+    if (!edgesBySource.has(e.source)) edgesBySource.set(e.source, []);
+    edgesBySource.get(e.source)!.push(e);
+  }
+
+  for (const node of sorted) {
+    stepOrder++;
+    if (skipped.has(node.id)) {
       await supabase.from("workflow_run_steps").insert({
-        run_id: run.id,
-        workspace_id: wf.workspace_id,
-        node_id: node.id,
-        node_type: kind,
-        node_label: label,
-        status,
-        input: { context: context_data },
-        output,
-        error: err,
-        step_order: stepOrder,
-        finished_at: new Date().toISOString(),
+        run_id: run.id, workspace_id: wf.workspace_id,
+        node_id: node.id, node_type: node.data?.kind, node_label: node.data?.label,
+        status: "skipped", input: {}, output: { reason: "branch not taken" },
+        step_order: stepOrder, finished_at: new Date().toISOString(),
       });
-
-      if (failed) break;
+      continue;
     }
 
-    await supabase.from("workflow_runs").update({
-      status: failed ? "failed" : "succeeded",
-      finished_at: new Date().toISOString(),
-      output: context_data,
-      error: failedMsg,
-    }).eq("id", run.id);
+    const kind = node.data?.kind as string;
+    const label = node.data?.label as string;
+    const cfg = node.data?.config ?? {};
+    let status: "succeeded"|"failed" = "succeeded";
+    let output: any = {};
+    let err: string | null = null;
+    const startedAt = Date.now();
 
-    return { runId: run.id, status: failed ? "failed" : "succeeded" };
-  });
+    try {
+      output = await executeNode(kind, cfg, ctx, wf.workspace_id, supabase);
+      ctx[node.id] = output;
+      ctx.last = output;
+      // Branching for logic.condition
+      if (kind === "logic.condition") {
+        const taken = output?.result ? "true" : "false";
+        const children = edgesBySource.get(node.id) ?? [];
+        for (const e of children) {
+          const eLabel = String(e.label ?? "").toLowerCase();
+          if (eLabel && eLabel !== taken) markBranchSkipped(e.target, graph.edges, skipped);
+        }
+      }
+    } catch (e: any) {
+      status = "failed";
+      err = e?.message || String(e);
+      failed = true;
+      failedMsg = err;
+    }
+
+    await supabase.from("workflow_run_steps").insert({
+      run_id: run.id,
+      workspace_id: wf.workspace_id,
+      node_id: node.id,
+      node_type: kind,
+      node_label: label,
+      status,
+      input: { config: cfg },
+      output,
+      error: err,
+      step_order: stepOrder,
+      started_at: new Date(startedAt).toISOString(),
+      finished_at: new Date().toISOString(),
+    });
+
+    if (failed) break;
+  }
+
+  await supabase.from("workflow_runs").update({
+    status: failed ? "failed" : "succeeded",
+    finished_at: new Date().toISOString(),
+    output: ctx,
+    error: failedMsg,
+  }).eq("id", run.id);
+
+  return { runId: run.id, status: failed ? "failed" : "succeeded", output: ctx };
+}
+
+function markBranchSkipped(nodeId: string, edges: any[], skipped: Set<string>) {
+  if (skipped.has(nodeId)) return;
+  skipped.add(nodeId);
+  for (const e of edges.filter((x) => x.source === nodeId)) {
+    markBranchSkipped(e.target, edges, skipped);
+  }
+}
+
+async function executeNode(
+  kind: string,
+  cfg: any,
+  ctx: Record<string, any>,
+  workspaceId: string,
+  supabase: any,
+): Promise<any> {
+  switch (kind) {
+    case "trigger.manual":
+    case "trigger.webhook":
+    case "trigger.schedule":
+      return { triggered: true, input: ctx.input };
+
+    case "ai.completion": {
+      const j = await callAI({
+        model: cfg.model,
+        system: "You are a helpful assistant.",
+        user: `${interpolate(cfg.prompt || "", ctx)}\n\nContext: ${JSON.stringify(ctx).slice(0, 1500)}`,
+      });
+      return { text: j.choices?.[0]?.message?.content ?? "" };
+    }
+    case "ai.agent": {
+      const j = await callAI({
+        model: cfg.model,
+        system: cfg.system || "You are a helpful agent.",
+        user: `${interpolate(cfg.goal || "", ctx)}\n\nContext: ${JSON.stringify(ctx).slice(0, 1500)}`,
+      });
+      return { text: j.choices?.[0]?.message?.content ?? "" };
+    }
+    case "ai.classify": {
+      const labels = String(cfg.labels || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+      const j = await callAI({
+        system: `Classify the input into exactly one of: ${labels.join(", ")}. Reply with just the label.`,
+        user: JSON.stringify(ctx.input ?? ctx.last ?? ""),
+      });
+      const text = (j.choices?.[0]?.message?.content ?? "").trim();
+      return { label: text, confidence: 1 };
+    }
+    case "ai.extract": {
+      const fields = String(cfg.fields || "");
+      const j = await callAI({
+        system: "Extract structured fields. Return JSON only.",
+        user: `Fields: ${fields}\nInput: ${JSON.stringify(ctx.input ?? ctx.last ?? "")}`,
+        json: true,
+      });
+      try { return JSON.parse(j.choices?.[0]?.message?.content ?? "{}"); }
+      catch { return { raw: j.choices?.[0]?.message?.content }; }
+    }
+
+    case "logic.condition": {
+      const result = !!safeEval(String(cfg.expression || "false"), ctx);
+      return { result, expression: cfg.expression };
+    }
+    case "logic.filter": {
+      const items = Array.isArray(ctx.input?.items) ? ctx.input.items : (ctx.last?.items ?? []);
+      const kept = items.filter((item: any) => !!safeEval(String(cfg.predicate || "true"), { ...ctx, item }));
+      return { items: kept, count: kept.length };
+    }
+    case "logic.loop": {
+      const list = safeEval(String(cfg.source || "input.items"), ctx);
+      return { iterations: Array.isArray(list) ? list.length : 0, items: list };
+    }
+
+    case "action.http": {
+      const url = interpolate(String(cfg.url || ""), ctx);
+      if (!/^https?:\/\//.test(url)) throw new Error("Invalid URL");
+      const method = String(cfg.method || "GET").toUpperCase();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (cfg.headers && typeof cfg.headers === "object") Object.assign(headers, cfg.headers);
+      const body = method === "GET" || method === "HEAD"
+        ? undefined
+        : (cfg.body ? interpolate(String(cfg.body), ctx) : JSON.stringify(ctx.input ?? {}));
+      const r = await fetch(url, { method, headers, body });
+      const text = await r.text();
+      let json: any = null;
+      try { json = JSON.parse(text); } catch { /* not JSON */ }
+      return { status: r.status, ok: r.ok, body: json ?? text };
+    }
+    case "action.slack": {
+      // Look up Slack integration for this workspace
+      const { data: integ } = await supabase
+        .from("integrations").select("config").eq("workspace_id", workspaceId).eq("kind", "slack").maybeSingle();
+      const webhookUrl = integ?.config?.webhook_url as string | undefined;
+      if (!webhookUrl) throw new Error("Slack integration not connected. Add a webhook URL in Integrations.");
+      const text = interpolate(String(cfg.text || ""), ctx) || "Workflow notification";
+      const r = await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, channel: cfg.channel }),
+      });
+      if (!r.ok) throw new Error(`Slack ${r.status}`);
+      return { posted: true, channel: cfg.channel };
+    }
+    case "action.email": {
+      // Queue an email — actual delivery requires Resend integration
+      return {
+        queued: true,
+        to: interpolate(String(cfg.to || ""), ctx),
+        subject: interpolate(String(cfg.subject || ""), ctx),
+        preview: interpolate(String(cfg.body || ""), ctx).slice(0, 200),
+      };
+    }
+    case "action.database": {
+      const table = String(cfg.table || "");
+      const op = String(cfg.op || "select");
+      if (!table) throw new Error("Table required");
+      if (op === "select") {
+        const { data, error } = await supabase.from(table).select("*").limit(50);
+        if (error) throw new Error(error.message);
+        return { rows: data, count: data?.length ?? 0 };
+      }
+      if (op === "insert") {
+        const row = ctx.input ?? {};
+        const { data, error } = await supabase.from(table).insert(row).select().single();
+        if (error) throw new Error(error.message);
+        return { inserted: data };
+      }
+      return { skipped: true, op };
+    }
+    case "action.transform": {
+      try {
+        // eslint-disable-next-line no-new-func
+        const fn = new Function("input", "ctx", String(cfg.code || "return input;"));
+        return { result: fn(ctx.input ?? ctx.last ?? {}, ctx) };
+      } catch (e: any) {
+        throw new Error(`Transform error: ${e.message}`);
+      }
+    }
+    case "action.document":
+      return { source: interpolate(String(cfg.source || ""), ctx), processed: false, note: "Use the Documents page to extract." };
+    case "action.output":
+      return { output: ctx.last ?? ctx.input ?? null };
+    default:
+      return { skipped: true, kind };
+  }
+}
 
 function topoSort(nodes: any[], edges: any[]) {
   if (!nodes?.length) return [];
@@ -254,3 +461,26 @@ function topoSort(nodes: any[], edges: any[]) {
   for (const n of nodes) if (!seen.has(n.id)) out.push(n);
   return out;
 }
+
+// ---------- webhook secret rotation ----------
+export const rotateWebhookSecret = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ workflowId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: row, error } = await supabase.rpc("rotate_workflow_webhook", { _workflow_id: data.workflowId });
+    if (error) throw new Error(error.message);
+    const r = Array.isArray(row) ? row[0] : row;
+    return { path: r?.webhook_path as string, secret: r?.webhook_secret as string };
+  });
+
+export const getWebhookInfo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ workflowId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: wf, error } = await supabase
+      .from("workflows").select("webhook_path, webhook_secret").eq("id", data.workflowId).single();
+    if (error || !wf) throw new Error("Not found");
+    return { path: wf.webhook_path as string | null, secret: wf.webhook_secret as string | null };
+  });
