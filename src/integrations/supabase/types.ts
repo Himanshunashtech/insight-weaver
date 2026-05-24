@@ -84,6 +84,48 @@ export type Database = {
           },
         ]
       }
+      agent_tool_calls: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          error: string | null
+          id: string
+          input: Json
+          latency_ms: number | null
+          message_id: string | null
+          output: Json
+          status: string
+          tool_name: string
+          workspace_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          input?: Json
+          latency_ms?: number | null
+          message_id?: string | null
+          output?: Json
+          status?: string
+          tool_name: string
+          workspace_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          input?: Json
+          latency_ms?: number | null
+          message_id?: string | null
+          output?: Json
+          status?: string
+          tool_name?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       agents: {
         Row: {
           avatar: string | null
@@ -407,6 +449,42 @@ export type Database = {
         }
         Relationships: []
       }
+      workflow_webhooks_log: {
+        Row: {
+          created_at: string
+          headers: Json
+          id: string
+          ip: string | null
+          payload: Json
+          run_id: string | null
+          signature_valid: boolean
+          workflow_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          headers?: Json
+          id?: string
+          ip?: string | null
+          payload?: Json
+          run_id?: string | null
+          signature_valid?: boolean
+          workflow_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          headers?: Json
+          id?: string
+          ip?: string | null
+          payload?: Json
+          run_id?: string | null
+          signature_valid?: boolean
+          workflow_id?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       workflows: {
         Row: {
           created_at: string
@@ -420,6 +498,8 @@ export type Database = {
           tags: string[]
           trigger_type: Database["public"]["Enums"]["workflow_trigger"]
           updated_at: string
+          webhook_path: string | null
+          webhook_secret: string | null
           workspace_id: string
         }
         Insert: {
@@ -434,6 +514,8 @@ export type Database = {
           tags?: string[]
           trigger_type?: Database["public"]["Enums"]["workflow_trigger"]
           updated_at?: string
+          webhook_path?: string | null
+          webhook_secret?: string | null
           workspace_id: string
         }
         Update: {
@@ -448,6 +530,8 @@ export type Database = {
           tags?: string[]
           trigger_type?: Database["public"]["Enums"]["workflow_trigger"]
           updated_at?: string
+          webhook_path?: string | null
+          webhook_secret?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -541,6 +625,13 @@ export type Database = {
       is_workspace_member: {
         Args: { _user_id: string; _workspace_id: string }
         Returns: boolean
+      }
+      rotate_workflow_webhook: {
+        Args: { _workflow_id: string }
+        Returns: {
+          webhook_path: string
+          webhook_secret: string
+        }[]
       }
     }
     Enums: {
