@@ -14,6 +14,7 @@ import {
 import { logWorkflowEvent } from "@/lib/audit";
 import { WorkflowAuditLog } from "@/components/app/WorkflowAuditLog";
 import { WorkflowCanvas, type Graph } from "@/components/workflow/WorkflowCanvas";
+import { WorkflowTriggerPanel } from "@/components/workflow/WorkflowTriggerPanel";
 import { runWorkflow } from "@/lib/ai-workflow.functions";
 
 export const Route = createFileRoute("/_authenticated/app/workflows_/$id")({
