@@ -324,27 +324,28 @@ function WorkflowEditor() {
                 />
               </div>
             </div>
-            {trigger === "schedule" && (
-              <div>
-                <label className="text-xs font-medium">Schedule (cron expression)</label>
-                <input
-                  value={schedule}
-                  onChange={(e) => setSchedule(e.target.value)}
-                  placeholder="0 9 * * 1-5"
-                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono"
-                />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Standard cron syntax. Example: <code className="font-mono">0 9 * * 1-5</code> runs weekdays at 9am.
-                </p>
-              </div>
-            )}
-            {trigger === "webhook" && (
-              <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                Webhook URL will be generated once the workflow is activated.
-              </div>
-            )}
           </div>
         </div>
+
+        <div className="rounded-2xl border border-border bg-card p-5 text-sm">
+          <h3 className="font-semibold">Status</h3>
+          <p className="mt-2 capitalize text-muted-foreground">{data.status}</p>
+          <h3 className="mt-5 font-semibold">Workflow ID</h3>
+          <p className="mt-2 font-mono text-xs text-muted-foreground break-all">{id}</p>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <WorkflowTriggerPanel
+          workflowId={id}
+          triggerType={trigger}
+          schedule={schedule}
+          onScheduleChange={setSchedule}
+          isActive={isActive}
+          onToggleActive={() => toggleActive.mutate()}
+          toggling={toggleActive.isPending}
+        />
+      </div>
 
         <div className="rounded-2xl border border-border bg-card p-5 text-sm">
           <h3 className="font-semibold">Status</h3>
