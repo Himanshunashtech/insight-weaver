@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaces } from "@/hooks/use-workspaces";
 import { useState } from "react";
 import { CheckCircle2, XCircle, Loader2, Clock } from "lucide-react";
+import { runsListQuery, runDetailQuery } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/app/runs")({
   component: RunsPage,
@@ -13,18 +13,7 @@ function RunsPage() {
   const { current } = useWorkspaces();
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const { data: runs = [] } = useQuery({
-    queryKey: ["runs", current?.id],
-    enabled: !!current,
-    refetchInterval: 5000,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("workflow_runs")
-        .select("*, workflows(name)").eq("workspace_id", current!.id)
-        .order("started_at", { ascending: false }).limit(100);
-      if (error) throw error;
-      return data;
-    },
-  });
+  const { data: runs = [] } = useQuery(runsListQuery(current?.id));
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
