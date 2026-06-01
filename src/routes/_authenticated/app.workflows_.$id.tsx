@@ -154,11 +154,23 @@ function WorkflowEditor() {
       }
       return next;
     },
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: ["workflow", id] });
+      const prev = qc.getQueryData<Workflow>(["workflow", id]);
+      if (prev) {
+        const next = prev.status === "active" ? "paused" : "active";
+        qc.setQueryData<Workflow>(["workflow", id], { ...prev, status: next });
+      }
+      return { prev };
+    },
+    onError: (e: Error, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["workflow", id], ctx.prev);
+      toast.error(e.message);
+    },
     onSuccess: (next) => {
       invalidate();
       toast.success(next === "active" ? "Workflow activated" : "Workflow paused");
     },
-    onError: (e: Error) => toast.error(e.message),
   });
 
   const remove = useMutation({
