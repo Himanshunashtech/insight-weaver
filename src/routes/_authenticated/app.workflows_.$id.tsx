@@ -345,6 +345,9 @@ function WorkflowEditor() {
           onToggleActive={() => toggleActive.mutate()}
           toggling={toggleActive.isPending}
         />
+      </div>
+
+
 
       <div className="mt-4">
         <CanvasBlock workflowId={id} workspaceId={data.workspace_id} />
