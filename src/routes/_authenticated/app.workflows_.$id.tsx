@@ -345,15 +345,6 @@ function WorkflowEditor() {
           onToggleActive={() => toggleActive.mutate()}
           toggling={toggleActive.isPending}
         />
-      </div>
-
-        <div className="rounded-2xl border border-border bg-card p-5 text-sm">
-          <h3 className="font-semibold">Status</h3>
-          <p className="mt-2 capitalize text-muted-foreground">{data.status}</p>
-          <h3 className="mt-5 font-semibold">Workflow ID</h3>
-          <p className="mt-2 font-mono text-xs text-muted-foreground break-all">{id}</p>
-        </div>
-      </div>
 
       <div className="mt-4">
         <CanvasBlock workflowId={id} workspaceId={data.workspace_id} />
