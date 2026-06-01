@@ -60,16 +60,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function RunDrawer({ id, onClose }: { id: string; onClose: () => void }) {
-  const { data } = useQuery({
-    queryKey: ["run", id],
-    queryFn: async () => {
-      const [{ data: run }, { data: steps }] = await Promise.all([
-        supabase.from("workflow_runs").select("*").eq("id", id).single(),
-        supabase.from("workflow_run_steps").select("*").eq("run_id", id).order("step_order"),
-      ]);
-      return { run, steps: steps ?? [] };
-    },
-  });
+  const { data } = useQuery(runDetailQuery(id));
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex justify-end" onClick={onClose}>
       <div className="w-full max-w-2xl h-full bg-background border-l border-border overflow-y-auto" onClick={(e) => e.stopPropagation()}>
