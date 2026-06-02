@@ -1,0 +1,1 @@
+ALTER TABLE public.workflows ADD COLUMN IF NOT EXISTS schedule_timezone TEXT NOT NULL DEFAULT 'UTC';

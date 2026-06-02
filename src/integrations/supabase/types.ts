@@ -494,6 +494,7 @@ export type Database = {
           id: string
           name: string
           schedule: string | null
+          schedule_timezone: string
           status: Database["public"]["Enums"]["workflow_status"]
           tags: string[]
           trigger_type: Database["public"]["Enums"]["workflow_trigger"]
@@ -510,6 +511,7 @@ export type Database = {
           id?: string
           name: string
           schedule?: string | null
+          schedule_timezone?: string
           status?: Database["public"]["Enums"]["workflow_status"]
           tags?: string[]
           trigger_type?: Database["public"]["Enums"]["workflow_trigger"]
@@ -526,6 +528,7 @@ export type Database = {
           id?: string
           name?: string
           schedule?: string | null
+          schedule_timezone?: string
           status?: Database["public"]["Enums"]["workflow_status"]
           tags?: string[]
           trigger_type?: Database["public"]["Enums"]["workflow_trigger"]
