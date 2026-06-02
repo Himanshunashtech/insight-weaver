@@ -29,8 +29,13 @@ type Workflow = {
   status: "draft" | "active" | "paused" | "archived";
   trigger_type: "manual" | "webhook" | "schedule";
   schedule: string | null;
+  schedule_timezone: string | null;
   tags: string[];
 };
+
+function browserTzDefault(): string {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; }
+}
 
 function WorkflowEditor() {
   const { id } = Route.useParams();
@@ -43,7 +48,7 @@ function WorkflowEditor() {
     queryFn: async (): Promise<Workflow> => {
       const { data, error } = await supabase
         .from("workflows")
-        .select("id, workspace_id, name, description, status, trigger_type, schedule, tags")
+        .select("id, workspace_id, name, description, status, trigger_type, schedule, schedule_timezone, tags")
         .eq("id", id)
         .single();
       if (error) throw error;
@@ -58,6 +63,7 @@ function WorkflowEditor() {
   const [description, setDescription] = useState("");
   const [trigger, setTrigger] = useState<Workflow["trigger_type"]>("manual");
   const [schedule, setSchedule] = useState("");
+  const [timezone, setTimezone] = useState<string>(browserTzDefault());
   const [tags, setTags] = useState("");
 
   useEffect(() => {
@@ -66,6 +72,7 @@ function WorkflowEditor() {
     setDescription(data.description ?? "");
     setTrigger(data.trigger_type);
     setSchedule(data.schedule ?? "");
+    setTimezone(data.schedule_timezone || browserTzDefault());
     setTags(data.tags.join(", "));
   }, [data]);
 
@@ -84,12 +91,14 @@ function WorkflowEditor() {
       const nextName = name.trim() || "Untitled workflow";
       const nextDesc = description.trim() || null;
       const nextSchedule = trigger === "schedule" ? (schedule.trim() || null) : null;
+      const nextTz = trigger === "schedule" ? (timezone.trim() || "UTC") : "UTC";
       const nextTags = tags.split(",").map((t) => t.trim()).filter(Boolean);
       const fields: string[] = [];
       if (data) {
         if (nextDesc !== (data.description ?? null)) fields.push("description");
         if (trigger !== data.trigger_type) fields.push("trigger");
         if (nextSchedule !== (data.schedule ?? null)) fields.push("schedule");
+        if (nextTz !== (data.schedule_timezone || "UTC")) fields.push("timezone");
         if (JSON.stringify(nextTags) !== JSON.stringify(data.tags)) fields.push("tags");
       }
       const { error } = await supabase
@@ -99,6 +108,7 @@ function WorkflowEditor() {
           description: nextDesc,
           trigger_type: trigger,
           schedule: nextSchedule,
+          schedule_timezone: nextTz,
           tags: nextTags,
         })
         .eq("id", id);
@@ -342,6 +352,8 @@ function WorkflowEditor() {
           triggerType={trigger}
           schedule={schedule}
           onScheduleChange={setSchedule}
+          timezone={timezone}
+          onTimezoneChange={setTimezone}
           isActive={isActive}
           onToggleActive={() => toggleActive.mutate()}
           toggling={toggleActive.isPending}

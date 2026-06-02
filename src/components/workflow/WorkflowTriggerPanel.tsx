@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
-  Copy, RotateCw, Webhook as WebhookIcon, Clock, Send, Eye, EyeOff, CheckCircle2, XCircle,
+  Copy, RotateCw, Webhook as WebhookIcon, Clock, Send, Eye, EyeOff, CheckCircle2, XCircle, Globe2,
 } from "lucide-react";
+import { CronExpressionParser } from "cron-parser";
 
 const PRESETS: { label: string; value: string }[] = [
   { label: "Every 5 minutes", value: "*/5 * * * *" },
@@ -20,6 +21,8 @@ type Props = {
   triggerType: "manual" | "webhook" | "schedule";
   schedule: string;
   onScheduleChange: (s: string) => void;
+  timezone: string;
+  onTimezoneChange: (tz: string) => void;
   isActive: boolean;
   onToggleActive: () => void;
   toggling?: boolean;
@@ -35,7 +38,63 @@ export function WorkflowTriggerPanel(props: Props) {
   );
 }
 
-function SchedulePanel({ schedule, onScheduleChange, isActive, onToggleActive, toggling }: Props) {
+// Curated common IANA timezones. The user can also paste any IANA name into the input.
+const COMMON_TZS = [
+  "UTC",
+  "America/Los_Angeles", "America/Denver", "America/Chicago", "America/New_York",
+  "America/Sao_Paulo", "Europe/London", "Europe/Berlin", "Europe/Paris", "Europe/Madrid",
+  "Europe/Istanbul", "Africa/Cairo", "Africa/Johannesburg",
+  "Asia/Dubai", "Asia/Karachi", "Asia/Kolkata", "Asia/Bangkok", "Asia/Singapore",
+  "Asia/Shanghai", "Asia/Tokyo", "Asia/Seoul", "Australia/Sydney", "Pacific/Auckland",
+];
+
+function browserTz(): string {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; }
+}
+
+function computeNextRuns(cron: string, tz: string, count = 3): { ok: true; runs: Date[] } | { ok: false; error: string } {
+  if (!cron.trim()) return { ok: false, error: "Enter a cron expression to preview next runs." };
+  try {
+    const it = CronExpressionParser.parse(cron, { tz, currentDate: new Date() });
+    const runs: Date[] = [];
+    for (let i = 0; i < count; i++) runs.push(it.next().toDate());
+    return { ok: true, runs };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Invalid cron expression" };
+  }
+}
+
+function formatInTz(d: Date, tz: string): string {
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      timeZone: tz, weekday: "short", month: "short", day: "numeric",
+      hour: "2-digit", minute: "2-digit", timeZoneName: "short",
+    }).format(d);
+  } catch {
+    return d.toISOString();
+  }
+}
+
+function relativeFromNow(d: Date): string {
+  const diffMs = d.getTime() - Date.now();
+  const abs = Math.abs(diffMs);
+  const mins = Math.round(abs / 60000);
+  if (mins < 1) return "in <1 min";
+  if (mins < 60) return `in ${mins} min`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 48) return `in ${hrs} h`;
+  const days = Math.round(hrs / 24);
+  return `in ${days} d`;
+}
+
+function SchedulePanel({ schedule, onScheduleChange, timezone, onTimezoneChange, isActive, onToggleActive, toggling }: Props) {
+  const preview = useMemo(() => computeNextRuns(schedule, timezone, 3), [schedule, timezone]);
+  const tzList = useMemo(() => {
+    const browser = browserTz();
+    const set = new Set<string>([browser, ...COMMON_TZS]);
+    return Array.from(set);
+  }, []);
+
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center gap-2">
@@ -48,7 +107,7 @@ function SchedulePanel({ schedule, onScheduleChange, isActive, onToggleActive, t
         </span>
       </div>
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-4 space-y-4">
         <div>
           <label className="text-xs font-medium">Presets</label>
           <div className="mt-1 flex flex-wrap gap-1.5">
@@ -68,17 +127,66 @@ function SchedulePanel({ schedule, onScheduleChange, isActive, onToggleActive, t
           </div>
         </div>
 
-        <div>
-          <label className="text-xs font-medium">Cron expression</label>
-          <input
-            value={schedule}
-            onChange={(e) => onScheduleChange(e.target.value)}
-            placeholder="0 9 * * 1-5"
-            className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono"
-          />
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Standard 5-field cron. Save the workflow to persist, then enable to start running on schedule.
-          </p>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium">Cron expression</label>
+            <input
+              value={schedule}
+              onChange={(e) => onScheduleChange(e.target.value)}
+              placeholder="0 9 * * 1-5"
+              spellCheck={false}
+              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium flex items-center gap-1">
+              <Globe2 className="h-3 w-3" /> Timezone
+            </label>
+            <input
+              list="wf-tz-list"
+              value={timezone}
+              onChange={(e) => onTimezoneChange(e.target.value)}
+              placeholder="UTC"
+              spellCheck={false}
+              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+            <datalist id="wf-tz-list">
+              {tzList.map((tz) => <option key={tz} value={tz} />)}
+            </datalist>
+            <div className="mt-1 flex items-center justify-between">
+              <p className="text-[11px] text-muted-foreground">IANA zone. Defaults from your browser.</p>
+              {timezone !== browserTz() && (
+                <button
+                  type="button"
+                  onClick={() => onTimezoneChange(browserTz())}
+                  className="text-[11px] text-foreground/80 hover:underline"
+                >
+                  Use {browserTz()}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-muted/30 p-3">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Next runs</p>
+          {preview.ok ? (
+            <ul className="space-y-1.5 text-sm">
+              {preview.runs.map((d, i) => (
+                <li key={i} className="flex items-center justify-between gap-3">
+                  <span className="font-mono text-xs">{formatInTz(d, timezone)}</span>
+                  <span className="text-[11px] text-muted-foreground">{relativeFromNow(d)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-destructive">{preview.error}</p>
+          )}
+          {preview.ok && !isActive && (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              These are previews — enable the schedule below for runs to fire.
+            </p>
+          )}
         </div>
 
         <div className="flex items-center justify-between pt-2 border-t border-border">
@@ -87,7 +195,7 @@ function SchedulePanel({ schedule, onScheduleChange, isActive, onToggleActive, t
           </p>
           <button
             onClick={onToggleActive}
-            disabled={toggling}
+            disabled={toggling || !preview.ok}
             className={`rounded-full border px-3 py-1.5 text-xs font-medium transition disabled:opacity-50 ${
               isActive
                 ? "border-amber-500/40 text-amber-700 hover:bg-amber-500/10"
